@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OT Management System | Dr. Samuel Vineeth</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    .ot-badge-OTA { background-color: #dbeafe; color: #1e40af; border-left: 4px solid #2563eb; }
+    .ot-badge-OTB { background-color: #dcfce7; color: #166534; border-left: 4px solid #16a34a; }
+    .ot-badge-OTC { background-color: #fef3c7; color: #92400e; border-left: 4px solid #d97706; }
+    .ot-badge-MinorOT { background-color: #f3e8ff; color: #6b21a8; border-left: 4px solid #9333ea; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- ================= AUTH SCREEN ================= -->
+  <div id="authScreen" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl border border-slate-100">
+      <div class="flex justify-center mb-4">
+        <div class="bg-blue-600 text-white p-3.5 rounded-2xl shadow-md">
+          <i data-lucide="shield-check" class="w-8 h-8"></i>
+        </div>
+      </div>
+      <h2 class="text-2xl font-bold text-center text-slate-900">Dr. Samuel Vineeth</h2>
+      <p class="text-xs text-center text-slate-500 mb-6 uppercase tracking-wider font-semibold">General Surgery • OT Portal</p>
+      
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Login ID</label>
+          <input type="text" id="loginId" required placeholder="Enter Login ID" class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 outline-none focus:border-blue-600 transition text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••••••" class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 outline-none focus:border-blue-600 transition text-sm">
+        </div>
+        <div id="loginError" class="hidden text-xs text-red-600 font-medium bg-red-50 p-2.5 rounded-lg border border-red-200 text-center">
+          Invalid Login ID or Password.
+        </div>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg font-semibold text-sm transition shadow-sm">
+          Authenticate & Access OTs
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MAIN DASHBOARD ================= -->
+  <div id="appContainer" class="hidden flex-1 flex flex-col min-h-screen">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-20 shadow-sm">
+      <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center space-x-3">
+          <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow">
+            <i data-lucide="activity" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-xl font-bold text-slate-900 leading-tight">OT Schedule Dashboard</h1>
+              <span id="syncIndicator" class="flex items-center gap-1 text-[11px] bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
+                <span id="syncDot" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 
+                <span id="syncText">Connecting...</span>
+              </span>
+            </div>
+            <p class="text-xs text-slate-500">Dr. Samuel Vineeth • General Surgery</p>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center bg-slate-100 rounded-lg p-1">
+            <button onclick="navigateDate(-1)" class="p-1.5 hover:bg-white rounded-md transition text-slate-600">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <button onclick="goToToday()" class="px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition">
+              Today
+            </button>
+            <button onclick="navigateDate(1)" class="p-1.5 hover:bg-white rounded-md transition text-slate-600">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <span id="currentDateDisplay" class="font-semibold text-sm text-slate-700 min-w-[140px] text-center"></span>
+
+          <!-- View Switcher -->
+          <div class="bg-slate-100 p-1 rounded-lg flex text-xs font-medium">
+            <button onclick="setView('day')" id="btn-day" class="px-3 py-1.5 rounded-md">Day</button>
+            <button onclick="setView('week')" id="btn-week" class="px-3 py-1.5 rounded-md">Week</button>
+            <button onclick="setView('month')" id="btn-month" class="px-3 py-1.5 rounded-md">Month</button>
+          </div>
+
+          <!-- Schedule Action -->
+          <button onclick="openModal()" class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition shadow-sm">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>Schedule Case</span>
+          </button>
+
+          <!-- Logout Button -->
+          <button onclick="handleLogout()" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Log Out">
+            <i data-lucide="log-out" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Filter Bar -->
+    <div class="bg-white border-b border-slate-100 px-6 py-2.5">
+      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="text-slate-500 font-medium">Filter OT:</span>
+          <button onclick="filterOT('ALL')" class="ot-filter-btn px-2.5 py-1 rounded-full border bg-slate-900 text-white font-medium" data-ot="ALL">All OTs</button>
+          <button onclick="filterOT('OT-A')" class="ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium" data-ot="OT-A">OT-A</button>
+          <button onclick="filterOT('OT-B')" class="ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium" data-ot="OT-B">OT-B</button>
+          <button onclick="filterOT('OT-C')" class="ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium" data-ot="OT-C">OT-C</button>
+          <button onclick="filterOT('Minor OT')" class="ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium" data-ot="Minor OT">Minor OT</button>
+        </div>
+        <div class="flex items-center gap-4 text-slate-500">
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> OT-A</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> OT-B</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> OT-C</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Minor OT</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 overflow-x-auto">
+      <div id="calendarContainer" class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 min-h-[550px]"></div>
+    </main>
+  </div>
+
+  <!-- Modal: Book/Schedule Surgery -->
+  <div id="bookingModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100 max-h-[92vh] flex flex-col">
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-slate-800 text-base">Schedule New Surgery</h3>
+          <p class="text-xs text-slate-500">Enter patient vitals and schedule flexible surgery time</p>
+        </div>
+        <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="appointmentForm" onsubmit="saveAppointment(event)" class="p-6 space-y-3.5 text-sm overflow-y-auto">
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Patient Name</label>
+          <input type="text" id="patientName" required placeholder="e.g., Mr. Ramesh Kumar" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Age (Yrs / Mos)</label>
+            <input type="text" id="patientAge" required placeholder="e.g., 45 yrs" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Sex</label>
+            <select id="patientSex" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Diagnosis</label>
+          <input type="text" id="patientDiagnosis" required placeholder="e.g., Symptomatic Cholelithiasis" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Planned Procedure</label>
+          <input type="text" id="procedureName" required placeholder="e.g., Laparoscopic Cholecystectomy" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">OT Selection</label>
+            <select id="otRoom" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
+              <option value="OT-A">OT-A</option>
+              <option value="OT-B">OT-B</option>
+              <option value="OT-C">OT-C</option>
+              <option value="Minor OT">Minor OT</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Date</label>
+            <input type="date" id="surgeryDate" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+          </div>
+        </div>
+
+        <!-- Flexible Time Fields -->
+        <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1 text-xs">Custom Start Time</label>
+            <input type="time" id="startTime" step="60" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1 text-xs">Custom End Time</label>
+            <input type="time" id="endTime" step="60" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Anaesthesia & Notes</label>
+          <input type="text" id="notes" placeholder="e.g., GA / Spinal, Blood Arranged" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
+          <button type="submit" id="saveBtn" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">Save Schedule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ================= FIREBASE CONFIGURATION =================
+    const firebaseConfig = {
+      apiKey: "AIzaSyAycrTRE-M9sWOnNVc4M2QpIL6soA5Wt4Y",
+      authDomain: "ot-appointment.firebaseapp.com",
+      projectId: "ot-appointment",
+      storageBucket: "ot-appointment.firebasestorage.app",
+      messagingSenderId: "232402174158",
+      appId: "1:232402174158:web:790bc6c6266aa4812b109f"
+    };
+
+    let db = null;
+    let isCloudActive = false;
+
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      db = firebase.firestore();
+      isCloudActive = true;
+    } catch (err) {
+      console.warn("Firebase initialization encountered an issue:", err);
+    }
+
+    // Auth Credentials[cite: 1]
+    const AUTH_ID = "SamuelVineeth";
+    const AUTH_PASS = "Dr8688366386";
+
+    // Application State[cite: 1]
+    let currentView = 'day';
+    let currentDate = new Date();
+    let selectedOT = 'ALL';
+    let appointments = [];
+
+    const OTs = ['OT-A', 'OT-B', 'OT-C', 'Minor OT'];
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const enteredId = document.getElementById('loginId').value.trim();
+      const enteredPass = document.getElementById('loginPassword').value.trim();
+
+      if (enteredId === AUTH_ID && enteredPass === AUTH_PASS) {
+        sessionStorage.setItem('ot_authenticated', 'true');
+        showDashboard();
+      } else {
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem('ot_authenticated');
+      document.getElementById('appContainer').classList.add('hidden');
+      document.getElementById('authScreen').classList.remove('hidden');
+      document.getElementById('loginForm').reset();
+      document.getElementById('loginError').classList.add('hidden');
+    }
+
+    function showDashboard() {
+      document.getElementById('authScreen').classList.add('hidden');
+      document.getElementById('appContainer').classList.remove('hidden');
+
+      const dot = document.getElementById('syncDot');
+      const text = document.getElementById('syncText');
+      
+      if (isCloudActive) {
+        dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
+        text.innerText = "Cloud Synced";
+      } else {
+        dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500";
+        text.innerText = "Local Storage Mode";
+      }
+
+      initDataSync();
+      setView('day');
+      lucide.createIcons();
+    }
+
+    function initDataSync() {
+      if (isCloudActive && db) {
+        db.collection("ot_appointments").onSnapshot((snapshot) => {
+          appointments = [];
+          snapshot.forEach((doc) => {
+            appointments.push({ id: doc.id, ...doc.data() });
+          });
+          renderCalendar();
+        }, (error) => {
+          console.warn("Cloud read failed; reading from local storage:", error);
+          const dot = document.getElementById('syncDot');
+          const text = document.getElementById('syncText');
+          if (dot && text) {
+            dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500";
+            text.innerText = "Local Storage Mode";
+          }
+          loadLocalStorage();
+        });
+      } else {
+        loadLocalStorage();
+      }
+    }
+
+    function loadLocalStorage() {
+      try {
+        appointments = JSON.parse(localStorage.getItem('dr_samuel_ot_records')) || [];
+      } catch (e) {
+        appointments = [];
+      }
+      renderCalendar();
+    }
+
+    function getOTClass(ot) {
+      return 'ot-badge-' + (ot || '').replace(/[\s-]/g, '');
+    }
+
+    function setView(view) {
+      currentView = view;
+      ['day', 'week', 'month'].forEach(v => {
+        const btn = document.getElementById(`btn-${v}`);
+        if (v === view) {
+          btn.className = 'px-3 py-1.5 rounded-md bg-white text-blue-600 shadow-sm font-semibold';
+        } else {
+          btn.className = 'px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900';
+        }
+      });
+      renderCalendar();
+    }
+
+    function filterOT(ot) {
+      selectedOT = ot;
+      document.querySelectorAll('.ot-filter-btn').forEach(btn => {
+        if (btn.dataset.ot === ot) {
+          btn.className = 'ot-filter-btn px-2.5 py-1 rounded-full border bg-slate-900 text-white font-medium';
+        } else {
+          btn.className = 'ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium hover:bg-slate-50';
+        }
+      });
+      renderCalendar();
+    }
+
+    function navigateDate(step) {
+      if (currentView === 'day') {
+        currentDate.setDate(currentDate.getDate() + step);
+      } else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() + (step * 7));
+      } else if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + step);
+      }
+      renderCalendar();
+    }
+
+    function goToToday() {
+      currentDate = new Date();
+      renderCalendar();
+    }
+
+    async function deleteAppointment(id) {
+      if (!confirm('Are you sure you want to remove this scheduled surgery?')) return;
+
+      if (isCloudActive && db) {
+        try {
+          await db.collection("ot_appointments").doc(id).delete();
+          return;
+        } catch (err) {
+          console.warn("Cloud delete failed; executing local removal:", err);
+        }
+      }
+      
+      appointments = appointments.filter(a => a.id !== id);
+      localStorage.setItem('dr_samuel_ot_records', JSON.stringify(appointments));
+      renderCalendar();
+    }
+
+    function openModal() {
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      document.getElementById('surgeryDate').value = `${year}-${month}-${day}`;
+      document.getElementById('bookingModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('appointmentForm').reset();
+      document.getElementById('bookingModal').classList.add('hidden');
+    }
+
+    async function saveAppointment(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.innerText = 'Saving...';
+      saveBtn.disabled = true;
+
+      const newCase = {
+        patient: document.getElementById('patientName').value.trim(),
+        age: document.getElementById('patientAge').value.trim(),
+        sex: document.getElementById('patientSex').value,
+        diagnosis: document.getElementById('patientDiagnosis').value.trim(),
+        procedure: document.getElementById('procedureName').value.trim(),
+        ot: document.getElementById('otRoom').value,
+        date: document.getElementById('surgeryDate').value,
+        startTime: document.getElementById('startTime').value,
+        endTime: document.getElementById('endTime').value,
+        notes: document.getElementById('notes').value.trim(),
+        createdAt: new Date().toISOString()
+      };
+
+      try {
+        if (isCloudActive && db) {
+          await db.collection("ot_appointments").add(newCase);
+        } else {
+          newCase.id = 'case_' + Date.now();
+          appointments.push(newCase);
+          localStorage.setItem('dr_samuel_ot_records', JSON.stringify(appointments));
+          renderCalendar();
+        }
+        closeModal();
+      } catch (err) {
+        console.warn("Cloud write failed; storing locally instead:", err);
+        newCase.id = 'case_' + Date.now();
+        appointments.push(newCase);
+        localStorage.setItem('dr_samuel_ot_records', JSON.stringify(appointments));
+        renderCalendar();
+        closeModal();
+      } finally {
+        saveBtn.innerText = 'Save Schedule';
+        saveBtn.disabled = false;
+      }
+    }
+
+    // ================= RENDERING ENGINE =================
+    function renderCalendar() {
+      const container = document.getElementById('calendarContainer');
+      const dateDisplay = document.getElementById('currentDateDisplay');
+      
+      const sortedAppointments = [...appointments].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+      const filtered = sortedAppointments.filter(a => selectedOT === 'ALL' || a.ot === selectedOT);
+
+      if (currentView === 'day') {
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        dateDisplay.innerText = currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        
+        const activeOTs = selectedOT === 'ALL' ? OTs : [selectedOT];
+        
+        let html = `<div class="grid grid-cols-1 md:grid-cols-${activeOTs.length} gap-4">`;
+        activeOTs.forEach(ot => {
+          const list = filtered.filter(a => a.date === dateStr && a.ot === ot);
+          html += `
+            <div class="border border-slate-200 rounded-lg p-3 bg-slate-50/50 flex flex-col">
+              <div class="font-bold text-slate-700 text-sm mb-3 pb-2 border-b border-slate-200 flex justify-between items-center">
+                <span>${ot}</span>
+                <span class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">${list.length}</span>
+              </div>
+              <div class="space-y-2.5">
+                ${list.length === 0 ? '<p class="text-xs text-slate-400 italic py-6 text-center">No cases scheduled</p>' : ''}
+                ${list.map(item => `
+                  <div class="p-3 rounded-lg bg-white shadow-sm border border-slate-200 ${getOTClass(item.ot)} text-xs relative group">
+                    <div class="flex justify-between items-start">
+                      <div class="font-bold text-slate-900 bg-white/80 px-2 py-0.5 rounded border border-slate-200">
+                        ${item.startTime} – ${item.endTime}
+                      </div>
+                      <button onclick="deleteAppointment('${item.id}')" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+
+                    <div class="mt-2">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="font-bold text-slate-900 text-sm">${item.patient}</span>
+                        <span class="text-[11px] font-semibold bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.2 rounded">
+                          ${item.age || 'N/A'} • ${item.sex || ''}
+                        </span>
+                      </div>
+                      
+                      <div class="mt-1 text-slate-700">
+                        <span class="font-semibold text-slate-500 text-[10px] uppercase">Dx:</span> 
+                        <span class="font-medium text-red-800 bg-red-50/60 px-1 rounded">${item.diagnosis || 'Undiagnosed'}</span>
+                      </div>
+
+                      <div class="mt-0.5 text-slate-700">
+                        <span class="font-semibold text-slate-500 text-[10px] uppercase">Proc:</span> 
+                        <span class="font-semibold text-slate-800">${item.procedure}</span>
+                      </div>
+
+                      ${item.notes ? `<div class="text-[10px] text-slate-500 mt-1.5 italic bg-slate-50 p-1 rounded border border-slate-100">Note: ${item.notes}</div>` : ''}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+
+      } else if (currentView === 'week') {
+        const startOfWeek = new Date(currentDate);
+        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+        dateDisplay.innerText = `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+        let html = `<div class="grid grid-cols-1 md:grid-cols-7 gap-2">`;
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(startOfWeek);
+          d.setDate(startOfWeek.getDate() + i);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const dt = String(d.getDate()).padStart(2, '0');
+          const dStr = `${y}-${m}-${dt}`;
+          
+          const now = new Date();
+          const isToday = dStr === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const dayCases = filtered.filter(a => a.date === dStr);
+
+          html += `
+            <div class="border ${isToday ? 'border-blue-400 bg-blue-50/20' : 'border-slate-200'} rounded-lg p-2 min-h-[320px] flex flex-col">
+              <div class="text-center font-bold text-xs pb-1 mb-2 border-b border-slate-100 ${isToday ? 'text-blue-600' : 'text-slate-700'}">
+                ${d.toLocaleDateString('en-US', { weekday: 'short' })}
+                <span class="block text-sm font-semibold">${d.getDate()}</span>
+              </div>
+              <div class="space-y-1.5 flex-1 overflow-y-auto max-h-[500px]">
+                ${dayCases.map(item => `
+                  <div class="p-1.5 rounded ${getOTClass(item.ot)} text-[11px] shadow-xs">
+                    <div class="font-bold flex justify-between text-[10px]">
+                      <span>${item.startTime}</span>
+                      <span class="opacity-75">${item.ot}</span>
+                    </div>
+                    <div class="truncate font-semibold text-slate-900">${item.patient} (${item.age || '-'})</div>
+                    <div class="truncate text-[10px] text-red-700 font-medium">Dx: ${item.diagnosis || '-'}</div>
+                    <div class="truncate text-[10px] text-slate-600">${item.procedure}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+        html += `</div>`;
+        container.innerHTML = html;
+
+      } else if (currentView === 'month') {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        dateDisplay.innerText = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        let html = `
+          <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-500 mb-2">
+            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+          </div>
+          <div class="grid grid-cols-7 gap-1">
+        `;
+
+        for (let i = 0; i < firstDay; i++) {
+          html += `<div class="bg-slate-50/50 rounded-lg min-h-[85px] p-1 border border-transparent"></div>`;
+        }
+
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dayCases = filtered.filter(a => a.date === dStr);
+          const isToday = dStr === todayStr;
+
+          html += `
+            <div class="border ${isToday ? 'border-blue-400 bg-blue-50/20' : 'border-slate-200'} rounded-lg min-h-[90px] p-1.5 flex flex-col justify-between">
+              <div class="text-right text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-slate-600'}">${day}</div>
+              <div class="space-y-1 overflow-y-auto max-h-[65px]">
+                ${dayCases.map(item => `
+                  <div class="text-[10px] truncate px-1 rounded ${getOTClass(item.ot)}" title="${item.patient} (${item.age}/${item.sex}) | Dx: ${item.diagnosis} | Proc: ${item.procedure}">
+                    ${item.startTime} ${item.patient} (${item.diagnosis || item.procedure})
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+        html += `</div>`;
+        container.innerHTML = html;
+      }
+
+      lucide.createIcons();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      if (sessionStorage.getItem('ot_authenticated') === 'true') {
+        showDashboard();
+      }
+    });
+  </script>
+</body>
+</html>
