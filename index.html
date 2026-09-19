@@ -66,7 +66,7 @@
               <h1 class="text-xl font-bold text-slate-900 leading-tight">OT Schedule Dashboard</h1>
               <span id="syncIndicator" class="flex items-center gap-1 text-[11px] bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
                 <span id="syncDot" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 
-                <span id="syncText">Connecting...</span>
+                <span id="syncText">Local Mode</span>
               </span>
             </div>
             <p class="text-xs text-slate-500">Dr. Samuel Vineeth • General Surgery</p>
@@ -75,19 +75,31 @@
 
         <!-- Controls -->
         <div class="flex flex-wrap items-center gap-3">
-          <div class="flex items-center bg-slate-100 rounded-lg p-1">
-            <button onclick="navigateDate(-1)" class="p-1.5 hover:bg-white rounded-md transition text-slate-600">
+          <div class="flex items-center bg-slate-100 rounded-lg p-1 relative">
+            <button onclick="navigateDate(-1)" class="p-1.5 hover:bg-white rounded-md transition text-slate-600" title="Previous">
               <i data-lucide="chevron-left" class="w-4 h-4"></i>
             </button>
-            <button onclick="goToToday()" class="px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition">
-              Today
-            </button>
-            <button onclick="navigateDate(1)" class="p-1.5 hover:bg-white rounded-md transition text-slate-600">
+            
+            <!-- Jump to any Date / Month / Year via Calendar -->
+            <div class="relative flex items-center">
+              <button onclick="goToToday()" class="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-l-md transition border-r border-slate-200">
+                Today
+              </button>
+              <button onclick="openDatePicker()" class="p-1 text-slate-600 hover:text-blue-600 hover:bg-white rounded-r-md transition" title="Choose specific date, month, or year">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+              </button>
+              <input type="date" id="dateJumpInput" onchange="handleDateJump(this.value)" class="absolute opacity-0 pointer-events-none w-0 h-0 top-0 left-0">
+            </div>
+
+            <button onclick="navigateDate(1)" class="p-1.5 hover:bg-white rounded-md transition text-slate-600" title="Next">
               <i data-lucide="chevron-right" class="w-4 h-4"></i>
             </button>
           </div>
 
-          <span id="currentDateDisplay" class="font-semibold text-sm text-slate-700 min-w-[140px] text-center"></span>
+          <button onclick="openDatePicker()" title="Click to change date" class="group flex items-center gap-1 font-semibold text-sm text-slate-700 hover:text-blue-600 min-w-[140px] text-center px-2 py-1 rounded hover:bg-slate-100 transition">
+            <span id="currentDateDisplay"></span>
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600"></i>
+          </button>
 
           <!-- View Switcher -->
           <div class="bg-slate-100 p-1 rounded-lg flex text-xs font-medium">
@@ -95,6 +107,17 @@
             <button onclick="setView('week')" id="btn-week" class="px-3 py-1.5 rounded-md">Week</button>
             <button onclick="setView('month')" id="btn-month" class="px-3 py-1.5 rounded-md">Month</button>
           </div>
+
+          <!-- Report & Print Actions -->
+          <button onclick="openReportModal()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 transition">
+            <i data-lucide="file-down" class="w-4 h-4"></i>
+            <span>Export Report</span>
+          </button>
+
+          <button onclick="printOTList()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition shadow-sm">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            <span>Print OT List</span>
+          </button>
 
           <!-- Schedule Action -->
           <button onclick="openModal()" class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition shadow-sm">
@@ -110,17 +133,30 @@
       </div>
     </header>
 
-    <!-- Filter Bar -->
+    <!-- Filter Bar with Reference Search & Manage Button -->
     <div class="bg-white border-b border-slate-100 px-6 py-2.5">
       <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <span class="text-slate-500 font-medium">Filter OT:</span>
           <button onclick="filterOT('ALL')" class="ot-filter-btn px-2.5 py-1 rounded-full border bg-slate-900 text-white font-medium" data-ot="ALL">All OTs</button>
           <button onclick="filterOT('OT-A')" class="ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium" data-ot="OT-A">OT-A</button>
           <button onclick="filterOT('OT-B')" class="ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium" data-ot="OT-B">OT-B</button>
           <button onclick="filterOT('OT-C')" class="ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium" data-ot="OT-C">OT-C</button>
           <button onclick="filterOT('Minor OT')" class="ot-filter-btn px-2.5 py-1 rounded-full border border-slate-300 text-slate-600 font-medium" data-ot="Minor OT">Minor OT</button>
+          
+          <!-- Reference Search & Manage Trigger -->
+          <div class="flex items-center gap-2 ml-0 sm:ml-4 border-l sm:border-slate-200 sm:pl-4">
+            <span class="text-slate-500 font-medium flex items-center gap-1"><i data-lucide="user-check" class="w-3.5 h-3.5 text-blue-600"></i> Reference:</span>
+            <select id="referenceFilterSelect" onchange="filterByReference(this.value)" class="border border-slate-300 bg-white rounded-md px-2 py-1 outline-none text-xs font-semibold text-slate-700 max-w-[170px]">
+              <option value="ALL">All References</option>
+            </select>
+            <button onclick="openManageReferencesModal()" class="flex items-center gap-1 text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-2 py-1 rounded-md font-medium transition" title="Edit reference names list">
+              <i data-lucide="settings" class="w-3 h-3"></i>
+              <span>Manage</span>
+            </button>
+          </div>
         </div>
+
         <div class="flex items-center gap-4 text-slate-500">
           <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> OT-A</span>
           <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> OT-B</span>
@@ -136,20 +172,47 @@
     </main>
   </div>
 
-  <!-- Modal: Book/Schedule Surgery -->
+  <!-- Modal: Book / Schedule / Edit Surgery -->
   <div id="bookingModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100 max-h-[92vh] flex flex-col">
       <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
         <div>
-          <h3 class="font-bold text-slate-800 text-base">Schedule New Surgery</h3>
-          <p class="text-xs text-slate-500">Enter patient vitals and schedule flexible surgery time</p>
+          <h3 id="modalTitle" class="font-bold text-slate-800 text-base">Schedule New Surgery</h3>
+          <p id="modalSubtitle" class="text-xs text-slate-500">Enter patient vitals, case priority, reference, and surgical details</p>
         </div>
         <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       <form id="appointmentForm" onsubmit="saveAppointment(event)" class="p-6 space-y-3.5 text-sm overflow-y-auto">
+        <input type="hidden" id="editingAppointmentId" value="">
+
         <div>
           <label class="block font-medium text-slate-700 mb-1">Patient Name</label>
           <input type="text" id="patientName" required placeholder="e.g., Mr. Ramesh Kumar" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+        </div>
+
+        <!-- OP Number & Phone Number -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">OP No.</label>
+            <input type="text" id="patientOpNo" placeholder="e.g., OP-2026/894" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Phone Number</label>
+            <input type="tel" id="patientPhone" placeholder="e.g., +91 9876543210" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+          </div>
+        </div>
+
+        <!-- Reference By Selection & Quick Manage Link -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block font-medium text-slate-700">Reference By</label>
+            <button type="button" onclick="openManageReferencesModal()" class="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1">
+              <i data-lucide="edit" class="w-3 h-3"></i> Edit List
+            </button>
+          </div>
+          <select id="patientRefBy" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
+            <option value="">-- Select Reference --</option>
+          </select>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -167,13 +230,41 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Priority Type</label>
+            <select id="casePriority" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white font-semibold text-slate-800">
+              <option value="Elective">Elective</option>
+              <option value="Emergency">Emergency</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Surgery Status</label>
+            <select id="surgeryStatus" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
+              <option value="Scheduled">Scheduled</option>
+              <option value="Completed">Completed</option>
+              <option value="Postponed">Postponed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">Anaesthesia</label>
+            <input type="text" id="anaesthesia" placeholder="GA / Spinal / LA" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Surgeon Name</label>
+          <input type="text" id="surgeonName" required value="Dr. Samuel Vineeth" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+        </div>
+
         <div>
           <label class="block font-medium text-slate-700 mb-1">Diagnosis</label>
           <input type="text" id="patientDiagnosis" required placeholder="e.g., Symptomatic Cholelithiasis" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
         </div>
 
         <div>
-          <label class="block font-medium text-slate-700 mb-1">Planned Procedure</label>
+          <label class="block font-medium text-slate-700 mb-1">Surgery / Procedure</label>
           <input type="text" id="procedureName" required placeholder="e.g., Laparoscopic Cholecystectomy" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
         </div>
 
@@ -193,21 +284,21 @@
           </div>
         </div>
 
-        <!-- Flexible Time Fields -->
+        <!-- Time Fields -->
         <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
           <div>
-            <label class="block font-medium text-slate-700 mb-1 text-xs">Custom Start Time</label>
+            <label class="block font-medium text-slate-700 mb-1 text-xs">Start Time</label>
             <input type="time" id="startTime" step="60" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
           </div>
           <div>
-            <label class="block font-medium text-slate-700 mb-1 text-xs">Custom End Time</label>
+            <label class="block font-medium text-slate-700 mb-1 text-xs">End Time</label>
             <input type="time" id="endTime" step="60" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm bg-white">
           </div>
         </div>
 
         <div>
-          <label class="block font-medium text-slate-700 mb-1">Anaesthesia & Notes</label>
-          <input type="text" id="notes" placeholder="e.g., GA / Spinal, Blood Arranged" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+          <label class="block font-medium text-slate-700 mb-1">Remarks / Special Instructions</label>
+          <textarea id="remarks" rows="2" placeholder="e.g., Blood arranged, Diabetic, Hypertension, High risk consent" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm resize-none"></textarea>
         </div>
 
         <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -218,39 +309,154 @@
     </div>
   </div>
 
+  <!-- Modal: Manage & Edit Reference Names -->
+  <div id="manageRefModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[85vh]">
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-slate-800 text-base">Manage Reference Names</h3>
+          <p class="text-xs text-slate-500">Add, rename, or delete referrers from the system</p>
+        </div>
+        <button type="button" onclick="closeManageReferencesModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="p-6 space-y-4 flex-1 overflow-y-auto">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Add New Reference</label>
+          <div class="flex gap-2">
+            <input type="text" id="newRefInput" placeholder="e.g., Dr. Rajesh Kumar" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 text-sm">
+            <button type="button" onclick="addNewReferenceFromModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-100 pt-3">
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Existing Referrers</label>
+          <div id="referenceListItems" class="space-y-1.5 max-h-[250px] overflow-y-auto pr-1">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+        <button type="button" onclick="resetDefaultReferences()" class="text-xs text-slate-500 hover:text-red-600 transition">Reset Defaults</button>
+        <button type="button" onclick="closeManageReferencesModal()" class="px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-xs font-medium">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Download Reports -->
+  <div id="reportModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100 p-6 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-slate-800 text-base">Download Case Reports</h3>
+        <button type="button" onclick="closeReportModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Timeframe Range</label>
+          <select id="reportTimeframe" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 bg-white">
+            <option value="day">Day-wise (Selected Date)</option>
+            <option value="week">Week-wise (Current Week)</option>
+            <option value="month">Month-wise (Current Month)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Status Filter</label>
+          <select id="reportStatus" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-600 bg-white">
+            <option value="ALL">All Statuses (Consolidated)</option>
+            <option value="Completed">Completed Only</option>
+            <option value="Postponed">Postponed Only</option>
+            <option value="Cancelled">Cancelled Only</option>
+            <option value="Scheduled">Scheduled Only</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button type="button" onclick="closeReportModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 font-medium text-sm">Cancel</button>
+        <button type="button" onclick="generateReportCSV()" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium text-sm">Export CSV</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // ================= DATE HELPERS (DD/MM/YYYY) =================
+    function formatDateDMY(dateInput) {
+      if (!dateInput) return '';
+      let d;
+      if (typeof dateInput === 'string' && dateInput.includes('-')) {
+        const parts = dateInput.split('-');
+        d = new Date(parts[0], parts[1] - 1, parts[2]);
+      } else {
+        d = new Date(dateInput);
+      }
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    function timeToMinutes(t) {
+      if (!t) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function isTimeOverlapping(start1, end1, start2, end2) {
+      const s1 = timeToMinutes(start1);
+      const e1 = timeToMinutes(end1);
+      const s2 = timeToMinutes(start2);
+      const e2 = timeToMinutes(end2);
+      return Math.max(s1, s2) < Math.min(e1, e2);
+    }
+
     // ================= FIREBASE CONFIGURATION =================
     const firebaseConfig = {
-      apiKey: "AIzaSyAycrTRE-M9sWOnNVc4M2QpIL6soA5Wt4Y",
-      authDomain: "ot-appointment.firebaseapp.com",
-      projectId: "ot-appointment",
-      storageBucket: "ot-appointment.firebasestorage.app",
-      messagingSenderId: "232402174158",
-      appId: "1:232402174158:web:790bc6c6266aa4812b109f"
-    };
+    apiKey: "AIzaSyAycrTRE-M9sWOnNVc4M2QpIL6soA5Wt4Y",
+  authDomain: "ot-appointment.firebaseapp.com",
+  projectId: "ot-appointment",
+  storageBucket: "ot-appointment.firebasestorage.app",
+  messagingSenderId: "232402174158",
+  appId: "1:232402174158:web:790bc6c6266aa4812b109f"
+};
 
     let db = null;
     let isCloudActive = false;
 
-    try {
-      if (!firebase.apps.length) {
+    if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("YOUR_API_KEY")) {
+      try {
         firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        isCloudActive = true;
+      } catch (err) {
+        console.warn("Firebase initialization error, defaulting to local mode:", err);
       }
-      db = firebase.firestore();
-      isCloudActive = true;
-    } catch (err) {
-      console.warn("Firebase initialization encountered an issue:", err);
     }
 
-    // Auth Credentials[cite: 1]
+    // Auth Credentials
     const AUTH_ID = "SamuelVineeth";
     const AUTH_PASS = "Dr8688366386";
 
-    // Application State[cite: 1]
+    // Default Reference Names List
+    const DEFAULT_REFERENCES = [
+      "Dr. Samuel Vineeth (Self)",
+      "Dr. Pranuth",
+      "Dr. Ahalya",
+      "Direct / OP Walk-in",
+      "Casualty / ER",
+      "General Physician",
+      "External Hospital"
+    ];
+
+    // Application State
     let currentView = 'day';
     let currentDate = new Date();
     let selectedOT = 'ALL';
+    let selectedReference = 'ALL';
     let appointments = [];
+    let referenceList = [];
 
     const OTs = ['OT-A', 'OT-B', 'OT-C', 'Minor OT'];
 
@@ -281,7 +487,6 @@
 
       const dot = document.getElementById('syncDot');
       const text = document.getElementById('syncText');
-      
       if (isCloudActive) {
         dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
         text.innerText = "Cloud Synced";
@@ -290,9 +495,151 @@
         text.innerText = "Local Storage Mode";
       }
 
+      loadReferences();
       initDataSync();
       setView('day');
       lucide.createIcons();
+    }
+
+    // ================= CALENDAR PICKER & DATE JUMP =================
+    function openDatePicker() {
+      const picker = document.getElementById('dateJumpInput');
+      // Sync datepicker value to current date
+      const y = currentDate.getFullYear();
+      const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const d = String(currentDate.getDate()).padStart(2, '0');
+      picker.value = `${y}-${m}-${d}`;
+      
+      if (picker.showPicker) {
+        picker.showPicker();
+      } else {
+        picker.click();
+      }
+    }
+
+    function handleDateJump(dateStr) {
+      if (!dateStr) return;
+      const parts = dateStr.split('-');
+      currentDate = new Date(parts[0], parts[1] - 1, parts[2]);
+      renderCalendar();
+    }
+
+    // ================= REFERENCE NAMES MANAGEMENT =================
+    function loadReferences() {
+      try {
+        const stored = localStorage.getItem('ot_reference_list');
+        referenceList = stored ? JSON.parse(stored) : [...DEFAULT_REFERENCES];
+      } catch (e) {
+        referenceList = [...DEFAULT_REFERENCES];
+      }
+      refreshReferenceDropdowns();
+    }
+
+    function saveReferences() {
+      localStorage.setItem('ot_reference_list', JSON.stringify(referenceList));
+      refreshReferenceDropdowns();
+    }
+
+    function openManageReferencesModal() {
+      renderReferenceManagerList();
+      document.getElementById('manageRefModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeManageReferencesModal() {
+      document.getElementById('manageRefModal').classList.add('hidden');
+      document.getElementById('newRefInput').value = '';
+    }
+
+    function renderReferenceManagerList() {
+      const container = document.getElementById('referenceListItems');
+      if (referenceList.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-400 italic py-3 text-center">No references configured</div>`;
+        return;
+      }
+
+      container.innerHTML = referenceList.map((ref, idx) => `
+        <div class="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+          <span class="font-medium text-slate-800 truncate">${ref}</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" onclick="editReferenceItem(${idx})" title="Rename" class="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded transition">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="deleteReferenceItem(${idx})" title="Delete" class="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function addNewReferenceFromModal() {
+      const input = document.getElementById('newRefInput');
+      const val = input.value.trim();
+      if (!val) return;
+
+      if (!referenceList.includes(val)) {
+        referenceList.push(val);
+        saveReferences();
+        renderReferenceManagerList();
+        input.value = '';
+      } else {
+        alert('This reference already exists in the list.');
+      }
+    }
+
+    function editReferenceItem(idx) {
+      const oldVal = referenceList[idx];
+      const newVal = prompt("Edit Reference Name:", oldVal);
+      if (newVal !== null && newVal.trim() && newVal.trim() !== oldVal) {
+        const cleaned = newVal.trim();
+        appointments.forEach(a => {
+          if (a.refBy === oldVal) a.refBy = cleaned;
+        });
+        localStorage.setItem('dr_samuel_ot_records', JSON.stringify(appointments));
+
+        referenceList[idx] = cleaned;
+        saveReferences();
+        renderReferenceManagerList();
+        renderCalendar();
+      }
+    }
+
+    function deleteReferenceItem(idx) {
+      const ref = referenceList[idx];
+      if (confirm(`Remove "${ref}" from reference options? Existing cases will still keep their reference.`)) {
+        referenceList.splice(idx, 1);
+        saveReferences();
+        renderReferenceManagerList();
+      }
+    }
+
+    function resetDefaultReferences() {
+      if (confirm('Reset reference list to default values?')) {
+        referenceList = [...DEFAULT_REFERENCES];
+        saveReferences();
+        renderReferenceManagerList();
+      }
+    }
+
+    function refreshReferenceDropdowns() {
+      const formSelect = document.getElementById('patientRefBy');
+      const currentVal = formSelect.value;
+      formSelect.innerHTML = '<option value="">-- Select Reference --</option>' +
+        referenceList.map(ref => `<option value="${ref}">${ref}</option>`).join('');
+      if (currentVal && referenceList.includes(currentVal)) {
+        formSelect.value = currentVal;
+      }
+
+      const filterSelect = document.getElementById('referenceFilterSelect');
+      filterSelect.innerHTML = '<option value="ALL">All References</option>' +
+        referenceList.map(ref => `<option value="${ref}" ${selectedReference === ref ? 'selected' : ''}>${ref}</option>`).join('');
+    }
+
+    function filterByReference(ref) {
+      selectedReference = ref;
+      renderCalendar();
     }
 
     function initDataSync() {
@@ -304,13 +651,7 @@
           });
           renderCalendar();
         }, (error) => {
-          console.warn("Cloud read failed; reading from local storage:", error);
-          const dot = document.getElementById('syncDot');
-          const text = document.getElementById('syncText');
-          if (dot && text) {
-            dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500";
-            text.innerText = "Local Storage Mode";
-          }
+          console.warn("Cloud read failed. Falling back to local store:", error);
           loadLocalStorage();
         });
       } else {
@@ -329,6 +670,26 @@
 
     function getOTClass(ot) {
       return 'ot-badge-' + (ot || '').replace(/[\s-]/g, '');
+    }
+
+    function getStatusBadge(status) {
+      switch (status) {
+        case 'Completed':
+          return '<span class="bg-emerald-100 text-emerald-800 border border-emerald-300 font-semibold px-2 py-0.5 rounded text-[10px]">Completed</span>';
+        case 'Postponed':
+          return '<span class="bg-amber-100 text-amber-800 border border-amber-300 font-semibold px-2 py-0.5 rounded text-[10px]">Postponed</span>';
+        case 'Cancelled':
+          return '<span class="bg-rose-100 text-rose-800 border border-rose-300 font-semibold px-2 py-0.5 rounded text-[10px]">Cancelled</span>';
+        default:
+          return '<span class="bg-blue-100 text-blue-800 border border-blue-300 font-semibold px-2 py-0.5 rounded text-[10px]">Scheduled</span>';
+      }
+    }
+
+    function getPriorityBadge(priority) {
+      if (priority === 'Emergency') {
+        return '<span class="bg-red-600 text-white font-bold px-1.5 py-0.2 rounded text-[9px] tracking-wide uppercase shadow-xs">Emergency</span>';
+      }
+      return '<span class="bg-slate-200 text-slate-700 font-semibold px-1.5 py-0.2 rounded text-[9px] uppercase">Elective</span>';
     }
 
     function setView(view) {
@@ -372,6 +733,23 @@
       renderCalendar();
     }
 
+    async function updateCaseStatus(id, newStatus) {
+      if (isCloudActive && db) {
+        try {
+          await db.collection("ot_appointments").doc(id).update({ status: newStatus });
+          return;
+        } catch (err) {
+          console.warn("Cloud update failed. Updating locally:", err);
+        }
+      }
+      const idx = appointments.findIndex(a => a.id === id);
+      if (idx !== -1) {
+        appointments[idx].status = newStatus;
+        localStorage.setItem('dr_samuel_ot_records', JSON.stringify(appointments));
+        renderCalendar();
+      }
+    }
+
     async function deleteAppointment(id) {
       if (!confirm('Are you sure you want to remove this scheduled surgery?')) return;
 
@@ -380,7 +758,7 @@
           await db.collection("ot_appointments").doc(id).delete();
           return;
         } catch (err) {
-          console.warn("Cloud delete failed; executing local removal:", err);
+          console.warn("Cloud delete failed. Deleting locally:", err);
         }
       }
       
@@ -390,52 +768,181 @@
     }
 
     function openModal() {
+      document.getElementById('modalTitle').innerText = 'Schedule New Surgery';
+      document.getElementById('modalSubtitle').innerText = 'Enter patient vitals, case priority, reference, and surgical details';
+      document.getElementById('saveBtn').innerText = 'Save Schedule';
+      document.getElementById('editingAppointmentId').value = '';
+
       const year = currentDate.getFullYear();
       const month = String(currentDate.getMonth() + 1).padStart(2, '0');
       const day = String(currentDate.getDate()).padStart(2, '0');
       document.getElementById('surgeryDate').value = `${year}-${month}-${day}`;
+      document.getElementById('patientRefBy').value = '';
+      document.getElementById('bookingModal').classList.remove('hidden');
+    }
+
+    function editAppointment(id) {
+      const item = appointments.find(a => a.id === id);
+      if (!item) return;
+
+      document.getElementById('modalTitle').innerText = 'Edit Scheduled Surgery';
+      document.getElementById('modalSubtitle').innerText = 'Make necessary changes to the patient surgery details';
+      document.getElementById('saveBtn').innerText = 'Update Schedule';
+      document.getElementById('editingAppointmentId').value = item.id;
+
+      document.getElementById('patientName').value = item.patient || '';
+      document.getElementById('patientOpNo').value = item.opNo || '';
+      document.getElementById('patientPhone').value = item.phone || '';
+      
+      if (item.refBy && !referenceList.includes(item.refBy)) {
+        referenceList.push(item.refBy);
+        saveReferences();
+      }
+      document.getElementById('patientRefBy').value = item.refBy || '';
+
+      document.getElementById('patientAge').value = item.age || '';
+      document.getElementById('patientSex').value = item.sex || 'Male';
+      document.getElementById('casePriority').value = item.priority || 'Elective';
+      document.getElementById('surgeryStatus').value = item.status || 'Scheduled';
+      document.getElementById('anaesthesia').value = item.anaesthesia || '';
+      document.getElementById('surgeonName').value = item.surgeon || 'Dr. Samuel Vineeth';
+      document.getElementById('patientDiagnosis').value = item.diagnosis || '';
+      document.getElementById('procedureName').value = item.procedure || '';
+      document.getElementById('otRoom').value = item.ot || 'OT-A';
+      document.getElementById('surgeryDate').value = item.date || '';
+      document.getElementById('startTime').value = item.startTime || '';
+      document.getElementById('endTime').value = item.endTime || '';
+      document.getElementById('remarks').value = item.remarks || item.notes || '';
+
       document.getElementById('bookingModal').classList.remove('hidden');
     }
 
     function closeModal() {
       document.getElementById('appointmentForm').reset();
+      document.getElementById('editingAppointmentId').value = '';
+      document.getElementById('surgeonName').value = 'Dr. Samuel Vineeth';
+      document.getElementById('casePriority').value = 'Elective';
+      document.getElementById('surgeryStatus').value = 'Scheduled';
+      document.getElementById('patientRefBy').value = '';
       document.getElementById('bookingModal').classList.add('hidden');
     }
 
+    function openReportModal() {
+      document.getElementById('reportModal').classList.remove('hidden');
+    }
+
+    function closeReportModal() {
+      document.getElementById('reportModal').classList.add('hidden');
+    }
+
+    // ================= VALIDATION & SAVE ENGINE =================
     async function saveAppointment(e) {
       e.preventDefault();
       const saveBtn = document.getElementById('saveBtn');
-      saveBtn.innerText = 'Saving...';
+      const editId = document.getElementById('editingAppointmentId').value;
+      const isEditing = Boolean(editId);
+
+      const targetDate = document.getElementById('surgeryDate').value;
+      const targetOT = document.getElementById('otRoom').value;
+      const startTime = document.getElementById('startTime').value;
+      const endTime = document.getElementById('endTime').value;
+      const targetStatus = document.getElementById('surgeryStatus').value;
+
+      if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+        alert("Error: Custom Start Time must be strictly earlier than End Time.");
+        return;
+      }
+
+      const otherCasesOnDate = appointments.filter(a => 
+        a.date === targetDate && 
+        a.id !== editId && 
+        a.status !== 'Cancelled'
+      );
+
+      const sameOTConflict = otherCasesOnDate.find(a => 
+        a.ot === targetOT && 
+        isTimeOverlapping(startTime, endTime, a.startTime, a.endTime)
+      );
+
+      if (sameOTConflict) {
+        alert(`❌ CANNOT SCHEDULE CASE:\n\n${targetOT} is already occupied by: "${sameOTConflict.patient}" from ${sameOTConflict.startTime} to ${sameOTConflict.endTime} on ${formatDateDMY(targetDate)}.\n\nSimultaneous cases in the same OT are not allowed.`);
+        return;
+      }
+
+      const diffOTConflicts = otherCasesOnDate.filter(a => 
+        a.ot !== targetOT && 
+        isTimeOverlapping(startTime, endTime, a.startTime, a.endTime)
+      );
+
+      if (diffOTConflicts.length > 0) {
+        const conflictDetails = diffOTConflicts
+          .map(c => `• ${c.ot}: ${c.patient} (${c.startTime} - ${c.endTime}) [Surgeon: ${c.surgeon || 'Dr. Samuel Vineeth'}]`)
+          .join('\n');
+        
+        const proceed = confirm(`⚠️ NOTICE: SIMULTANEOUS SURGERY ALERT!\n\nOther case(s) are already scheduled at the same time in different operation theatres on ${formatDateDMY(targetDate)}:\n\n${conflictDetails}\n\nDo you want to proceed with scheduling this case?`);
+        if (!proceed) {
+          return;
+        }
+      }
+
+      saveBtn.innerText = isEditing ? 'Updating...' : 'Saving...';
       saveBtn.disabled = true;
 
-      const newCase = {
+      const caseData = {
         patient: document.getElementById('patientName').value.trim(),
+        opNo: document.getElementById('patientOpNo').value.trim(),
+        phone: document.getElementById('patientPhone').value.trim(),
+        refBy: document.getElementById('patientRefBy').value.trim(),
         age: document.getElementById('patientAge').value.trim(),
         sex: document.getElementById('patientSex').value,
+        priority: document.getElementById('casePriority').value,
+        status: targetStatus,
+        anaesthesia: document.getElementById('anaesthesia').value.trim(),
+        surgeon: document.getElementById('surgeonName').value.trim(),
         diagnosis: document.getElementById('patientDiagnosis').value.trim(),
         procedure: document.getElementById('procedureName').value.trim(),
-        ot: document.getElementById('otRoom').value,
-        date: document.getElementById('surgeryDate').value,
-        startTime: document.getElementById('startTime').value,
-        endTime: document.getElementById('endTime').value,
-        notes: document.getElementById('notes').value.trim(),
-        createdAt: new Date().toISOString()
+        ot: targetOT,
+        date: targetDate,
+        startTime: startTime,
+        endTime: endTime,
+        remarks: document.getElementById('remarks').value.trim()
       };
 
       try {
         if (isCloudActive && db) {
-          await db.collection("ot_appointments").add(newCase);
+          if (isEditing) {
+            await db.collection("ot_appointments").doc(editId).update(caseData);
+          } else {
+            caseData.createdAt = new Date().toISOString();
+            await db.collection("ot_appointments").add(caseData);
+          }
         } else {
-          newCase.id = 'case_' + Date.now();
-          appointments.push(newCase);
+          if (isEditing) {
+            const index = appointments.findIndex(a => a.id === editId);
+            if (index !== -1) {
+              appointments[index] = { ...appointments[index], ...caseData };
+            }
+          } else {
+            caseData.id = 'case_' + Date.now();
+            caseData.createdAt = new Date().toISOString();
+            appointments.push(caseData);
+          }
           localStorage.setItem('dr_samuel_ot_records', JSON.stringify(appointments));
           renderCalendar();
         }
         closeModal();
       } catch (err) {
-        console.warn("Cloud write failed; storing locally instead:", err);
-        newCase.id = 'case_' + Date.now();
-        appointments.push(newCase);
+        console.warn("Save encountered an error. Falling back to local storage:", err);
+        if (isEditing) {
+          const index = appointments.findIndex(a => a.id === editId);
+          if (index !== -1) {
+            appointments[index] = { ...appointments[index], ...caseData };
+          }
+        } else {
+          caseData.id = 'case_' + Date.now();
+          caseData.createdAt = new Date().toISOString();
+          appointments.push(caseData);
+        }
         localStorage.setItem('dr_samuel_ot_records', JSON.stringify(appointments));
         renderCalendar();
         closeModal();
@@ -445,13 +952,284 @@
       }
     }
 
+    // ================= REPORTING ENGINE (CSV) =================
+    function generateReportCSV() {
+      const timeframe = document.getElementById('reportTimeframe').value;
+      const statusFilter = document.getElementById('reportStatus').value;
+
+      let filteredData = [...appointments];
+
+      if (timeframe === 'day') {
+        const y = currentDate.getFullYear();
+        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const d = String(currentDate.getDate()).padStart(2, '0');
+        const dStr = `${y}-${m}-${d}`;
+        filteredData = filteredData.filter(item => item.date === dStr);
+      } else if (timeframe === 'week') {
+        const startOfWeek = new Date(currentDate);
+        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        filteredData = filteredData.filter(item => {
+          const itemDate = new Date(item.date);
+          return itemDate >= startOfWeek && itemDate <= endOfWeek;
+        });
+      } else if (timeframe === 'month') {
+        const currMonth = currentDate.getMonth();
+        const currYear = currentDate.getFullYear();
+        filteredData = filteredData.filter(item => {
+          const itemDate = new Date(item.date);
+          return itemDate.getMonth() === currMonth && itemDate.getFullYear() === currYear;
+        });
+      }
+
+      if (statusFilter !== 'ALL') {
+        filteredData = filteredData.filter(item => (item.status || 'Scheduled') === statusFilter);
+      }
+
+      if (selectedReference !== 'ALL') {
+        filteredData = filteredData.filter(item => item.refBy === selectedReference);
+      }
+
+      if (filteredData.length === 0) {
+        alert('No cases found matching the selected criteria.');
+        return;
+      }
+
+      const headers = ['Date (DD/MM/YYYY)', 'Start Time', 'End Time', 'OT Room', 'Patient Name', 'OP No.', 'Phone Number', 'Reference By', 'Age', 'Sex', 'Priority', 'Surgeon', 'Diagnosis', 'Surgery/Procedure', 'Anaesthesia', 'Status', 'Remarks'];
+      
+      const rows = filteredData.map(item => [
+        `"${formatDateDMY(item.date)}"`,
+        `"${item.startTime || ''}"`,
+        `"${item.endTime || ''}"`,
+        `"${item.ot || ''}"`,
+        `"${(item.patient || '').replace(/"/g, '""')}"`,
+        `"${(item.opNo || '').replace(/"/g, '""')}"`,
+        `"${(item.phone || '').replace(/"/g, '""')}"`,
+        `"${(item.refBy || '').replace(/"/g, '""')}"`,
+        `"${item.age || ''}"`,
+        `"${item.sex || ''}"`,
+        `"${item.priority || 'Elective'}"`,
+        `"${(item.surgeon || 'Dr. Samuel Vineeth').replace(/"/g, '""')}"`,
+        `"${(item.diagnosis || '').replace(/"/g, '""')}"`,
+        `"${(item.procedure || '').replace(/"/g, '""')}"`,
+        `"${(item.anaesthesia || '').replace(/"/g, '""')}"`,
+        `"${item.status || 'Scheduled'}"`,
+        `"${(item.remarks || item.notes || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `OT_Report_${timeframe}_${statusFilter}_${formatDateDMY(new Date()).replace(/\//g, '-')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      closeReportModal();
+    }
+
+    // ================= LANDSCAPE OT LIST PRINT GENERATOR =================
+    function printOTList() {
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      const displayDate = formatDateDMY(dateStr);
+
+      const dayCases = appointments
+        .filter(a => a.date === dateStr && (selectedReference === 'ALL' || a.refBy === selectedReference))
+        .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+      const tableRows = dayCases.length === 0
+        ? `<tr><td colspan="8" style="border: 1px solid #111; text-align: center; padding: 28px; font-style: italic; color: #555;">No surgical cases scheduled for this date.</td></tr>`
+        : dayCases.map((c, idx) => `
+            <tr>
+              <td style="border: 1px solid #111; padding: 8px 4px; text-align: center; vertical-align: top; font-weight: bold;">${idx + 1}</td>
+              <td style="border: 1px solid #111; padding: 8px 6px; vertical-align: top;">
+                <div style="font-weight: bold; font-size: 12px;">${c.patient || '-'}</div>
+                ${c.opNo ? `<div style="font-size: 10px; font-weight: 600; color: #1e3a8a;">OP No: ${c.opNo}</div>` : ''}
+                <div style="font-size: 10px; color: #333;">${c.age || '-'} / ${c.sex || '-'}</div>
+                <div style="font-size: 9px; font-weight: bold; color: ${c.priority === 'Emergency' ? '#dc2626' : '#475569'}; text-transform: uppercase; margin-top: 2px;">
+                  [${c.priority || 'Elective'}]
+                </div>
+              </td>
+              <td style="border: 1px solid #111; padding: 8px 6px; vertical-align: top;">
+                ${c.diagnosis || '-'}
+              </td>
+              <td style="border: 1px solid #111; padding: 8px 6px; vertical-align: top; font-weight: 600;">
+                ${c.procedure || '-'}
+              </td>
+              <td style="border: 1px solid #111; padding: 8px 6px; vertical-align: top; text-align: center;">
+                ${c.anaesthesia || '-'}
+              </td>
+              <td style="border: 1px solid #111; padding: 8px 6px; text-align: center; vertical-align: top;">
+                <div style="font-weight: bold;">${c.ot || '-'}</div>
+                <div style="font-size: 10px;">${c.startTime || ''} – ${c.endTime || ''}</div>
+              </td>
+              <td style="border: 1px solid #111; padding: 8px 6px; vertical-align: top; font-weight: 500;">
+                ${c.surgeon || 'Dr. Samuel Vineeth'}
+              </td>
+              <td style="border: 1px solid #111; padding: 8px 6px; vertical-align: top; font-size: 10px;">
+                ${c.remarks || c.notes || '-'}
+              </td>
+            </tr>
+          `).join('');
+
+      const printHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>OT List - ${displayDate}</title>
+          <style>
+            @page {
+              size: A4 landscape;
+              margin: 10mm 15mm 15mm 15mm;
+            }
+            body {
+              font-family: "Times New Roman", Times, Georgia, serif;
+              color: #000;
+              margin: 0;
+              padding: 0;
+            }
+            .header {
+              text-align: center;
+              line-height: 1.3;
+              margin-bottom: 12px;
+            }
+            .hospital-title {
+              font-size: 20px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+            }
+            .hospital-subtitle {
+              font-size: 13px;
+              font-style: italic;
+            }
+            .hospital-unit {
+              font-size: 11px;
+              font-weight: 600;
+            }
+            .date-row {
+              text-align: right;
+              font-size: 12px;
+              font-weight: bold;
+              margin-bottom: 8px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 11px;
+            }
+            th {
+              background-color: #f1f5f9 !important;
+              border: 1px solid #111;
+              padding: 6px 4px;
+              font-weight: bold;
+              text-align: center;
+            }
+            .signatures {
+              margin-top: 55px;
+              display: flex;
+              justify-content: space-between;
+              font-size: 11px;
+              font-weight: bold;
+              padding: 0 40px;
+            }
+            .sig-box {
+              text-align: center;
+              width: 240px;
+            }
+            .sig-line {
+              border-top: 1px solid #000;
+              margin-bottom: 6px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="hospital-title">Leeser Memorial Hospital</div>
+            <div class="hospital-subtitle">formerly Women's Hospital Ambajipeta</div>
+            <div class="hospital-unit">a unit of Ambajipeta Womens Hospital Association</div>
+          </div>
+
+          <div class="date-row">
+            OT list - date: ${displayDate}
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 4%;">Sl. No</th>
+                <th style="width: 16%; text-align: left;">Patient Details</th>
+                <th style="width: 16%; text-align: left;">Diagnosis</th>
+                <th style="width: 17%; text-align: left;">Surgery</th>
+                <th style="width: 9%;">Anaesthesia</th>
+                <th style="width: 13%;">OT and timing</th>
+                <th style="width: 13%; text-align: left;">Name of the surgeon</th>
+                <th style="width: 12%; text-align: left;">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+
+          <div class="signatures">
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              Signature of the Surgeon
+            </div>
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              Signature of the OT incharge
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      let iframe = document.getElementById('printIframe');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'printIframe';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+      }
+
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(printHtml);
+      doc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }, 350);
+    }
+
     // ================= RENDERING ENGINE =================
     function renderCalendar() {
       const container = document.getElementById('calendarContainer');
       const dateDisplay = document.getElementById('currentDateDisplay');
       
       const sortedAppointments = [...appointments].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-      const filtered = sortedAppointments.filter(a => selectedOT === 'ALL' || a.ot === selectedOT);
+      
+      const filtered = sortedAppointments.filter(a => {
+        const matchesOT = selectedOT === 'ALL' || a.ot === selectedOT;
+        const matchesRef = selectedReference === 'ALL' || a.refBy === selectedReference;
+        return matchesOT && matchesRef;
+      });
 
       if (currentView === 'day') {
         const year = currentDate.getFullYear();
@@ -459,7 +1237,7 @@
         const day = String(currentDate.getDate()).padStart(2, '0');
         const dateStr = `${year}-${month}-${day}`;
 
-        dateDisplay.innerText = currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        dateDisplay.innerText = `${formatDateDMY(currentDate)} (${currentDate.toLocaleDateString('en-US', { weekday: 'short' })})`;
         
         const activeOTs = selectedOT === 'ALL' ? OTs : [selectedOT];
         
@@ -476,23 +1254,59 @@
                 ${list.length === 0 ? '<p class="text-xs text-slate-400 italic py-6 text-center">No cases scheduled</p>' : ''}
                 ${list.map(item => `
                   <div class="p-3 rounded-lg bg-white shadow-sm border border-slate-200 ${getOTClass(item.ot)} text-xs relative group">
-                    <div class="flex justify-between items-start">
-                      <div class="font-bold text-slate-900 bg-white/80 px-2 py-0.5 rounded border border-slate-200">
-                        ${item.startTime} – ${item.endTime}
+                    <div class="flex justify-between items-start gap-2">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="font-bold text-slate-900 bg-white/80 px-2 py-0.5 rounded border border-slate-200">
+                          ${item.startTime} – ${item.endTime}
+                        </span>
+                        ${getPriorityBadge(item.priority || 'Elective')}
                       </div>
-                      <button onclick="deleteAppointment('${item.id}')" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                      </button>
+                      <div class="flex items-center gap-1">
+                        <select onchange="updateCaseStatus('${item.id}', this.value)" class="text-[10px] font-semibold rounded border border-slate-200 bg-white/90 px-1 py-0.5 outline-none cursor-pointer">
+                          <option value="Scheduled" ${(item.status || 'Scheduled') === 'Scheduled' ? 'selected' : ''}>Scheduled</option>
+                          <option value="Completed" ${item.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                          <option value="Postponed" ${item.status === 'Postponed' ? 'selected' : ''}>Postponed</option>
+                          <option value="Cancelled" ${item.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                        </select>
+                        <button onclick="editAppointment('${item.id}')" title="Edit Case" class="text-slate-400 hover:text-blue-600 transition p-0.5 rounded hover:bg-slate-100">
+                          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="deleteAppointment('${item.id}')" title="Delete Case" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition p-0.5 rounded hover:bg-slate-100">
+                          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                      </div>
                     </div>
 
                     <div class="mt-2">
-                      <div class="flex items-center gap-1.5 flex-wrap">
-                        <span class="font-bold text-slate-900 text-sm">${item.patient}</span>
-                        <span class="text-[11px] font-semibold bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.2 rounded">
-                          ${item.age || 'N/A'} • ${item.sex || ''}
-                        </span>
+                      <div class="flex items-center justify-between gap-1 flex-wrap">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          <span class="font-bold text-slate-900 text-sm">${item.patient}</span>
+                          <span class="text-[11px] font-semibold bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.2 rounded">
+                            ${item.age || 'N/A'} • ${item.sex || ''}
+                          </span>
+                        </div>
+                        <div>${getStatusBadge(item.status || 'Scheduled')}</div>
                       </div>
+
+                      ${(item.opNo || item.phone) ? `
+                        <div class="mt-1 flex items-center gap-2 flex-wrap text-[11px] text-slate-600">
+                          ${item.opNo ? `<span class="bg-blue-50 text-blue-800 font-semibold px-1.5 py-0.5 rounded border border-blue-200">OP: ${item.opNo}</span>` : ''}
+                          ${item.phone ? `<span class="text-slate-600 font-medium">📞 ${item.phone}</span>` : ''}
+                        </div>
+                      ` : ''}
+
+                      ${item.refBy ? `
+                        <div class="mt-1 text-[11px] text-indigo-700 font-medium flex items-center gap-1">
+                          <i data-lucide="user-check" class="w-3 h-3 text-indigo-600"></i>
+                          <span>Ref: <strong>${item.refBy}</strong></span>
+                        </div>
+                      ` : ''}
                       
+                      <div class="mt-1 text-slate-700">
+                        <span class="font-semibold text-slate-500 text-[10px] uppercase">Surgeon:</span> 
+                        <span class="font-medium text-slate-900">${item.surgeon || 'Dr. Samuel Vineeth'}</span>
+                      </div>
+
                       <div class="mt-1 text-slate-700">
                         <span class="font-semibold text-slate-500 text-[10px] uppercase">Dx:</span> 
                         <span class="font-medium text-red-800 bg-red-50/60 px-1 rounded">${item.diagnosis || 'Undiagnosed'}</span>
@@ -503,7 +1317,18 @@
                         <span class="font-semibold text-slate-800">${item.procedure}</span>
                       </div>
 
-                      ${item.notes ? `<div class="text-[10px] text-slate-500 mt-1.5 italic bg-slate-50 p-1 rounded border border-slate-100">Note: ${item.notes}</div>` : ''}
+                      ${item.anaesthesia ? `
+                        <div class="mt-0.5 text-slate-700">
+                          <span class="font-semibold text-slate-500 text-[10px] uppercase">Anesth:</span> 
+                          <span class="font-medium text-slate-800">${item.anaesthesia}</span>
+                        </div>
+                      ` : ''}
+
+                      ${(item.remarks || item.notes) ? `
+                        <div class="text-[10px] text-slate-500 mt-1.5 italic bg-slate-50 p-1 rounded border border-slate-100">
+                          Remarks: ${item.remarks || item.notes}
+                        </div>
+                      ` : ''}
                     </div>
                   </div>
                 `).join('')}
@@ -520,7 +1345,7 @@
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
 
-        dateDisplay.innerText = `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        dateDisplay.innerText = `${formatDateDMY(startOfWeek)} - ${formatDateDMY(endOfWeek)}`;
 
         let html = `<div class="grid grid-cols-1 md:grid-cols-7 gap-2">`;
         for (let i = 0; i < 7; i++) {
@@ -539,16 +1364,20 @@
             <div class="border ${isToday ? 'border-blue-400 bg-blue-50/20' : 'border-slate-200'} rounded-lg p-2 min-h-[320px] flex flex-col">
               <div class="text-center font-bold text-xs pb-1 mb-2 border-b border-slate-100 ${isToday ? 'text-blue-600' : 'text-slate-700'}">
                 ${d.toLocaleDateString('en-US', { weekday: 'short' })}
-                <span class="block text-sm font-semibold">${d.getDate()}</span>
+                <span class="block text-sm font-semibold">${formatDateDMY(d)}</span>
               </div>
               <div class="space-y-1.5 flex-1 overflow-y-auto max-h-[500px]">
                 ${dayCases.map(item => `
-                  <div class="p-1.5 rounded ${getOTClass(item.ot)} text-[11px] shadow-xs">
+                  <div class="p-1.5 rounded ${getOTClass(item.ot)} text-[11px] shadow-xs cursor-pointer hover:ring-1 hover:ring-blue-400" onclick="editAppointment('${item.id}')">
                     <div class="font-bold flex justify-between text-[10px]">
                       <span>${item.startTime}</span>
-                      <span class="opacity-75">${item.ot}</span>
+                      <span class="${item.priority === 'Emergency' ? 'text-red-600 font-bold' : 'text-slate-500'} text-[9px] uppercase">
+                        ${item.priority || 'Elective'}
+                      </span>
                     </div>
                     <div class="truncate font-semibold text-slate-900">${item.patient} (${item.age || '-'})</div>
+                    ${item.opNo ? `<div class="text-[9px] text-blue-700 font-semibold truncate">OP: ${item.opNo}</div>` : ''}
+                    ${item.refBy ? `<div class="text-[9px] text-indigo-700 font-semibold truncate">Ref: ${item.refBy}</div>` : ''}
                     <div class="truncate text-[10px] text-red-700 font-medium">Dx: ${item.diagnosis || '-'}</div>
                     <div class="truncate text-[10px] text-slate-600">${item.procedure}</div>
                   </div>
@@ -563,10 +1392,13 @@
       } else if (currentView === 'month') {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
-        dateDisplay.innerText = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
 
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        dateDisplay.innerText = `${currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (${formatDateDMY(firstDayOfMonth)} - ${formatDateDMY(lastDayOfMonth)})`;
+
+        const firstDayIndex = firstDayOfMonth.getDay();
+        const daysInMonth = lastDayOfMonth.getDate();
 
         let html = `
           <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-500 mb-2">
@@ -575,7 +1407,7 @@
           <div class="grid grid-cols-7 gap-1">
         `;
 
-        for (let i = 0; i < firstDay; i++) {
+        for (let i = 0; i < firstDayIndex; i++) {
           html += `<div class="bg-slate-50/50 rounded-lg min-h-[85px] p-1 border border-transparent"></div>`;
         }
 
@@ -589,11 +1421,13 @@
 
           html += `
             <div class="border ${isToday ? 'border-blue-400 bg-blue-50/20' : 'border-slate-200'} rounded-lg min-h-[90px] p-1.5 flex flex-col justify-between">
-              <div class="text-right text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-slate-600'}">${day}</div>
+              <div class="text-right text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-slate-600'}">
+                ${String(day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}
+              </div>
               <div class="space-y-1 overflow-y-auto max-h-[65px]">
                 ${dayCases.map(item => `
-                  <div class="text-[10px] truncate px-1 rounded ${getOTClass(item.ot)}" title="${item.patient} (${item.age}/${item.sex}) | Dx: ${item.diagnosis} | Proc: ${item.procedure}">
-                    ${item.startTime} ${item.patient} (${item.diagnosis || item.procedure})
+                  <div onclick="editAppointment('${item.id}')" class="text-[10px] truncate px-1 rounded ${getOTClass(item.ot)} cursor-pointer hover:underline" title="Click to edit: ${item.patient} | OP: ${item.opNo || 'N/A'} | Ref: ${item.refBy || 'None'} | Dx: ${item.diagnosis}">
+                    ${item.startTime} ${item.patient}
                   </div>
                 `).join('')}
               </div>
